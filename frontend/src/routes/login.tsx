@@ -1,27 +1,23 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useForm } from '@tanstack/react-form'
+import { useEffect } from 'react'
 import { z } from 'zod'
 import { toast } from 'sonner'
+import { Lightbulb } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Icons } from '@/src/components/Icons'
 import { authClient } from '@/lib/auth-client'
 
 export const Route = createFileRoute('/login')({
   component: LoginPage,
+  validateSearch: (search: Record<string, unknown>) => ({
+    message: (search.message as string) || undefined,
+  }),
 })
 
-// Zod schema for form validation
 const loginSchema = z.object({
   email: z.email('Please enter a valid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
@@ -29,6 +25,19 @@ const loginSchema = z.object({
 
 function LoginPage() {
   const navigate = useNavigate()
+  const { message } = Route.useSearch()
+
+  useEffect(() => {
+    if (message === 'signup_complete') {
+      toast.success('Account created! Please sign in to continue.', {
+        duration: 5000,
+      })
+    } else if (message === 'already_completed') {
+      toast.info('Your account is already set up. Please sign in.', {
+        duration: 5000,
+      })
+    }
+  }, [message])
 
   const form = useForm({
     defaultValues: {
@@ -37,9 +46,7 @@ function LoginPage() {
     },
     validators: {
       onSubmit: loginSchema,
-      //   onChange: loginSchema,  // validates as you type
-      // // or
-      onBlur: loginSchema, // validates when field loses focus
+      onBlur: loginSchema,
     },
     onSubmit: async ({ value }) => {
       await authClient.signIn.email(
@@ -50,12 +57,11 @@ function LoginPage() {
         },
         {
           onSuccess: () => {
-            toast.success('Logged in successfully!')
-            navigate({ to: '/dashboard' })
+            toast.success('Logged in successfully!', { duration: 2000 })
+            setTimeout(() => navigate({ to: '/dashboard' }), 2000)
           },
           onError: (ctx) => {
             toast.error(ctx.error.message)
-            navigate({ to: '/login' })
           },
         },
       )
@@ -77,177 +83,143 @@ function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
-      {/* Background gradient effects */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/20 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-secondary/20 rounded-full blur-3xl" />
-      </div>
-
-      <div className="relative z-10 w-full max-w-md px-4">
-        {/* Logo */}
-        <div className="flex justify-center mb-8">
-          <div className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-              <Icons.logo className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <span className="text-2xl font-bold">TanStack</span>
-          </div>
-        </div>
-
-        <Card className="border-border/50 bg-card/50 backdrop-blur-xl">
-          <CardHeader className="space-y-1 text-center">
-            <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-            <CardDescription>
-              Sign in to your account to continue
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="space-y-4">
-            {/* OAuth Buttons */}
-            <div className="grid grid-cols-2 gap-4">
-              <Button
-                variant="outline"
-                onClick={handleGoogleLogin}
-                disabled={form.state.isSubmitting}
-                className="w-full"
-              >
-                <Icons.google className="mr-2 h-4 w-4" />
-                Google
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleGithubLogin}
-                disabled={form.state.isSubmitting}
-                className="w-full"
-              >
-                <Icons.gitHub className="mr-2 h-4 w-4" />
-                GitHub
-              </Button>
-            </div>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <Separator className="w-full" />
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="w-full max-w-lg">
+        <div className="rounded border border-border bg-card p-8">
+          <div className="mb-6 text-center">
+            <Link to="/" className="mb-4 inline-flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded bg-primary">
+                <Lightbulb className="h-4 w-4 text-primary-foreground" />
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">
-                  Or continue with
-                </span>
-              </div>
-            </div>
-
-            {/* TanStack Form */}
-            <form
-              id="login-form"
-              onSubmit={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                form.handleSubmit()
-              }}
-              className="space-y-4"
-            >
-              {/* Email Field */}
-              <form.Field name="email">
-                {(field) => (
-                  <div className="space-y-2">
-                    <Label htmlFor={field.name}>Email</Label>
-                    <Input
-                      id={field.name}
-                      type="email"
-                      placeholder="you@example.com"
-                      value={field.state.value}
-                      onChange={(e) => field.handleChange(e.target.value)}
-                      onBlur={field.handleBlur}
-                      disabled={form.state.isSubmitting}
-                      data-invalid={field.state.meta.errors.length > 0}
-                      className="data-[invalid=true]:border-destructive"
-                    />
-                    {field.state.meta.errors.length > 0 && (
-                      <p className="text-sm text-destructive">
-                        {field.state.meta.errors[0]?.message}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </form.Field>
-
-              {/* Password Field */}
-              <form.Field name="password">
-                {(field) => (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor={field.name}>Password</Label>
-                      <a
-                        href="/forgot-password"
-                        className="text-sm text-primary hover:underline"
-                      >
-                        Forgot password?
-                      </a>
-                    </div>
-                    <Input
-                      id={field.name}
-                      type="password"
-                      placeholder="••••••••"
-                      value={field.state.value}
-                      onChange={(e) => field.handleChange(e.target.value)}
-                      onBlur={field.handleBlur}
-                      disabled={form.state.isSubmitting}
-                      data-invalid={field.state.meta.errors.length > 0}
-                      className="data-[invalid=true]:border-destructive"
-                    />
-                    {field.state.meta.errors.length > 0 && (
-                      <p className="text-sm text-destructive">
-                        {field.state.meta.errors[0]?.message}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </form.Field>
-
-              <form.Subscribe
-                selector={(state) => [state.canSubmit, state.isSubmitting]}
-              >
-                {([canSubmit, isSubmitting]) => (
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={!canSubmit || isSubmitting}
-                  >
-                    {isSubmitting && (
-                      <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-                    )}
-                    Sign in
-                  </Button>
-                )}
-              </form.Subscribe>
-            </form>
-          </CardContent>
-
-          <CardFooter className="flex flex-col space-y-4">
-            <p className="text-center text-sm text-muted-foreground">
-              Don't have an account?{' '}
-              <a
-                href="/signup"
-                className="text-primary hover:underline font-medium"
-              >
-                Sign up
-              </a>
+            </Link>
+            <h1 className="text-xl font-semibold">Gripemine</h1>
+            <h2 className="mt-2 text-lg font-medium">Welcome back</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Sign in to your Gripemine account
             </p>
-          </CardFooter>
-        </Card>
+          </div>
 
-        {/* Footer */}
-        <p className="mt-8 text-center text-xs text-muted-foreground">
-          By signing in, you agree to our{' '}
-          <a href="/terms" className="underline hover:text-foreground">
-            Terms of Service
-          </a>{' '}
-          and{' '}
-          <a href="/privacy" className="underline hover:text-foreground">
-            Privacy Policy
-          </a>
-        </p>
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              variant="outline"
+              onClick={handleGoogleLogin}
+              disabled={form.state.isSubmitting}
+              className="w-full"
+            >
+              <Icons.google className="mr-2 h-4 w-4" />
+              Google
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleGithubLogin}
+              disabled={form.state.isSubmitting}
+              className="w-full"
+            >
+              <Icons.gitHub className="mr-2 h-4 w-4" />
+              GitHub
+            </Button>
+          </div>
+
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <Separator className="w-full" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">
+                Or continue with email
+              </span>
+            </div>
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              form.handleSubmit()
+            }}
+            className="space-y-4"
+          >
+            <form.Field name="email">
+              {(field) => (
+                <div className="space-y-2">
+                  <Label htmlFor={field.name}>Email</Label>
+                  <Input
+                    id={field.name}
+                    type="email"
+                    placeholder="samsmith@gmail.com"
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onBlur={field.handleBlur}
+                    disabled={form.state.isSubmitting}
+                    data-invalid={field.state.meta.errors.length > 0}
+                    className="data-[invalid=true]:border-destructive"
+                  />
+                  {field.state.meta.errors.length > 0 && (
+                    <p className="text-sm text-destructive">
+                      {field.state.meta.errors[0]?.message}
+                    </p>
+                  )}
+                </div>
+              )}
+            </form.Field>
+
+            <form.Field name="password">
+              {(field) => (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor={field.name}>Password</Label>
+                    <Link
+                      to="/forgot-password"
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
+                  <Input
+                    id={field.name}
+                    type="password"
+                    placeholder="••••••••••••"
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onBlur={field.handleBlur}
+                    disabled={form.state.isSubmitting}
+                    data-invalid={field.state.meta.errors.length > 0}
+                    className="data-[invalid=true]:border-destructive"
+                  />
+                  {field.state.meta.errors.length > 0 && (
+                    <p className="text-sm text-destructive">
+                      {field.state.meta.errors[0]?.message}
+                    </p>
+                  )}
+                </div>
+              )}
+            </form.Field>
+
+            <form.Subscribe
+              selector={(state) => [state.canSubmit, state.isSubmitting]}
+            >
+              {([canSubmit, isSubmitting]) => (
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={!canSubmit || isSubmitting}
+                >
+                  {isSubmitting && (
+                    <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Sign In
+                </Button>
+              )}
+            </form.Subscribe>
+          </form>
+
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            Don't have an account?{' '}
+            <Link to="/signup" className="text-primary hover:underline">
+              Sign up
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   )
